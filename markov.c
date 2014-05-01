@@ -39,14 +39,14 @@ void randomizeInput() {
   for (I = 0; I < SIZE; I++) Is[I] = (uint8_t)rnd(256);
 }
 
-int getBit(uint8_t *Bs, int L) {
-  return rnd(256)-30<Bs[L] ? 1 : 0;
-}
-
-uint8_t gatherBits(uint8_t *Bs, int *Ls) {
+uint8_t gatherBits(uint8_t *Bs, chain *C) {
   int I;
   uint8_t R = 0;
-  for (I = 0; I < BITS; I++) R |= getBit(Bs,Ls[I]) << I;
+  int Threshold = (int)round((double)(C-Cs)/(NCHAINS-1)*255);
+  for (I = 0; I < BITS; I++) {
+    int B = Threshold<Bs[C->Ls[I]] ? 1 : 0;
+    R |= B << I;
+  }
   return R;
 }
 
@@ -61,23 +61,23 @@ void initChains() {
 }
 
 void chainTrain(chain *C) {
-  uint8_t In = gatherBits(Is, C->Ls);
-  uint8_t Out = gatherBits(Os, C->Ls);
+  int In = gatherBits(Is, C);
+  int Out = gatherBits(Os, C);
   C->Ss[In][Out]++;
 }
 
 void chainFinishTraining(chain *C) {
   int I, J;
   for (I = 0; I < TRNS; I++) {
-    int best_count = 0;
-    int best_transition = 0;
+    int BestCount = 0;
+    int BestTransition = 0;
     for (J = 0; J < TRNS; J++) {
-      if (C->Ss[I][J] > best_count) {
-        best_count = C->Ss[I][J];
-        best_transition = J;
+      if (C->Ss[I][J] > BestCount) {
+        BestCount = C->Ss[I][J];
+        BestTransition = J;
       }
     }
-    C->Ts[I] = best_transition;
+    C->Ts[I] = BestTransition;
   }
 }
 
@@ -85,8 +85,8 @@ void trainChains(int Examples) {
   int I;
   while (Examples-- > 0) {
     switch (rnd(4)) { //degenerate cases
-    //case 0: memset(Is, 0, SIZE); break;
-    //case 1: memset(Is, 0xFF, SIZE); break;
+    case 0: memset(Is, 0, SIZE); break;
+    case 1: memset(Is, 0xFF, SIZE); break;
     default: randomizeInput();
     }
     exampleSort();
@@ -97,7 +97,7 @@ void trainChains(int Examples) {
 
 void chainVote(chain *C) {
   int I;
-  uint8_t In = gatherBits(Is, C->Ls);
+  uint8_t In = gatherBits(Is, C);
   uint8_t Out = C->Ts[In];
   for (I = 0; I < BITS; I++) {
     Vs[C->Ls[I]][0] += (Out&(1<<I)) ? 1 : 0;
