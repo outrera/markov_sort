@@ -5,10 +5,11 @@
 #include <math.h>
 #include <time.h>
 
-#define SIZE 8
+#define SIZE 3
 #define NCHAINS 1000
 #define BITS 8
 #define TRNS (1<<BITS)
+#define SMAX 255
 
 typedef struct chain {
   int Ls[BITS]; // locations of sampled bytes
@@ -36,17 +37,14 @@ int rnd(int N) {
 
 void randomizeInput() {
   int I;
-  for (I = 0; I < SIZE; I++) Is[I] = (uint8_t)rnd(256);
+  for (I = 0; I < SIZE; I++) Is[I] = (uint8_t)rnd(SMAX+1);
 }
 
 uint8_t gatherBits(uint8_t *Bs, chain *C) {
   int I;
   uint8_t R = 0;
-  int Threshold = (int)round((double)(C-Cs)/(NCHAINS-1)*255);
-  for (I = 0; I < BITS; I++) {
-    int B = Threshold<Bs[C->Ls[I]] ? 1 : 0;
-    R |= B << I;
-  }
+  int T = (int)round((double)(C-Cs)/(NCHAINS-1)*(SMAX-1));
+  for (I = 0; I < BITS; I++) if (T<Bs[C->Ls[I]]) R |= 1<<I;
   return R;
 }
 
@@ -111,7 +109,7 @@ void markovSort() {
   memset(Os, 0, SIZE);
   for (I = 0; I < NCHAINS; I++) chainVote(Cs+I);
   for (I = 0; I < SIZE; I++) {
-    Os[I] = (uint8_t)round((double)Vs[I][0]/Vs[I][1]*255);
+    Os[I] = (uint8_t)round((double)Vs[I][0]/Vs[I][1]*SMAX);
   }
 }
 
@@ -134,7 +132,7 @@ int main() {
 
   randomizeInput();
   //memset(Is, 0, SIZE);
-  //memset(Is, 255, SIZE);
+  //memset(Is, SMAX, SIZE);
   printArray("Sorting:", Is);
 
   markovSort();
