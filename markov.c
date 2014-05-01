@@ -5,13 +5,13 @@
 #include <math.h>
 #include <time.h>
 
-#define SIZE 16
+#define SIZE 8
 #define NCHAINS 1000
 #define BITS 8
 #define TRNS (1<<BITS)
 
 typedef struct chain {
-  int Ls[BITS]; // bit locations in 32-element array
+  int Ls[BITS]; // locations of sampled bytes
   uint16_t Ss[TRNS][TRNS]; // statistics
   uint16_t Ts[TRNS]; // transitions
 } chain;
@@ -20,15 +20,6 @@ chain Cs[NCHAINS];
 uint8_t Is[SIZE]; // input state
 uint8_t Os[SIZE]; // output state
 int Vs[SIZE][2]; // vote space
-
-int bitCount(uint32_t v) {
-  uint32_t c = v - ((v >> 1) & 0x55555555);
-  c = ((c >> 2) & 0x33333333) + (c & 0x33333333);
-  c = ((c >> 4) + c) & 0x0F0F0F0F;
-  c = ((c >> 8) + c) & 0x00FF00FF;
-  c = ((c >> 16) + c) & 0x0000FFFF;
-  return (int)c;
-}
 
 int cmp(const void *a, const void *b) {
   return (int)*(uint8_t*)a - (int)*(uint8_t*)b;
@@ -49,7 +40,7 @@ void randomizeInput() {
 }
 
 int getBit(uint8_t *Bs, int L) {
-  return rnd(256)<Bs[L] ? 1 : 0;
+  return rnd(256)-30<Bs[L] ? 1 : 0;
 }
 
 uint8_t gatherBits(uint8_t *Bs, int *Ls) {
@@ -94,8 +85,8 @@ void trainChains(int Examples) {
   int I;
   while (Examples-- > 0) {
     switch (rnd(4)) { //degenerate cases
-    case 0: memset(Is, 0, SIZE); break;
-    case 1: memset(Is, 0xFF, SIZE); break;
+    //case 0: memset(Is, 0, SIZE); break;
+    //case 1: memset(Is, 0xFF, SIZE); break;
     default: randomizeInput();
     }
     exampleSort();
@@ -139,7 +130,7 @@ int main() {
 
   printf("Training...\n");
   initChains();
-  trainChains(10000);
+  trainChains(1000);
 
   randomizeInput();
   //memset(Is, 0, SIZE);
