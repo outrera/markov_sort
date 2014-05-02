@@ -5,14 +5,15 @@
 #include <math.h>
 #include <time.h>
 
-#define SIZE 3
-#define NCHAINS 1000
-#define BITS 8
+#define SIZE 4
+#define NCHAINS (1000*SIZE)
+#define BITS 6
 #define TRNS (1<<BITS)
 #define SMAX 255
 
 typedef struct chain {
-  int Ls[BITS]; // locations of sampled bytes
+  int Ls[BITS]; // locations of sampled values
+  int Rs[BITS]; // responsiveness (amplitude cutoff)
   uint16_t Ss[TRNS][TRNS]; // statistics
   uint16_t Ts[TRNS]; // transitions
 } chain;
@@ -21,36 +22,45 @@ chain Cs[NCHAINS];
 uint8_t Is[SIZE]; // input state
 uint8_t Os[SIZE]; // output state
 int Vs[SIZE][2]; // vote space
+// NOTE: every Vs cell gets around NCHAINS*BITS/SIZE votes.
 
 int cmp(const void *a, const void *b) {
   return (int)*(uint8_t*)a - (int)*(uint8_t*)b;
 }
 
-void exampleSort() {
+void makeExample() {
+  int I = 0;
   memcpy(Os, Is, SIZE);
   heapsort(Os, SIZE, 1, cmp);
+  //for (I = 0; I < SIZE; I++) Os[I] /= 2;
+  //Os[0] = Os[0] + Os[1];
+  //Os[1] = 0;
+}
+
+void generateInput() {
+  int I;
+  for (I = 0; I < SIZE; I++) Is[I] = (uint8_t)rnd(SMAX+1);
+  //Is[0] = rnd(SMAX/2);
+  //Is[1] = rnd(SMAX/2);
 }
 
 int rnd(int N) {
   return round((double)rand()/RAND_MAX*(N-1));
 }
 
-void randomizeInput() {
-  int I;
-  for (I = 0; I < SIZE; I++) Is[I] = (uint8_t)rnd(SMAX+1);
-}
-
 uint8_t gatherBits(uint8_t *Bs, chain *C) {
   int I;
   uint8_t R = 0;
-  int T = (int)round((double)(C-Cs)/(NCHAINS-1)*(SMAX-1));
-  for (I = 0; I < BITS; I++) if (T<Bs[C->Ls[I]]) R |= 1<<I;
+  for (I = 0; I < BITS; I++) if (C->Rs[I]<Bs[C->Ls[I]]) R |= 1<<I;
   return R;
 }
 
 void chainInit(chain *C) {
   int I;
-  for (I = 0; I < BITS; I++) C->Ls[I] = rnd(SIZE);
+  for (I = 0; I < BITS; I++) {
+    C->Ls[I] = rnd(SIZE);
+    C->Rs[I] = rnd(SMAX-1);
+  }
 }
 
 void initChains() {
@@ -82,12 +92,12 @@ void chainFinishTraining(chain *C) {
 void trainChains(int Examples) {
   int I;
   while (Examples-- > 0) {
-    switch (rnd(4)) { //degenerate cases
+    switch (rnd(8)) { //degenerate cases
     case 0: memset(Is, 0, SIZE); break;
     case 1: memset(Is, 0xFF, SIZE); break;
-    default: randomizeInput();
+    default: generateInput();
     }
-    exampleSort();
+    makeExample();
     for (I = 0; I < NCHAINS; I++) chainTrain(Cs+I);
   }
   for (I = 0; I < NCHAINS; I++) chainFinishTraining(Cs+I);
@@ -109,6 +119,7 @@ void markovSort() {
   memset(Os, 0, SIZE);
   for (I = 0; I < NCHAINS; I++) chainVote(Cs+I);
   for (I = 0; I < SIZE; I++) {
+    //printf("%d: %d/%d\n", I, Vs[I][0], Vs[I][1]);
     Os[I] = (uint8_t)round((double)Vs[I][0]/Vs[I][1]*SMAX);
   }
 }
@@ -128,9 +139,9 @@ int main() {
 
   printf("Training...\n");
   initChains();
-  trainChains(1000);
+  trainChains(NCHAINS/2);
 
-  randomizeInput();
+  generateInput();
   //memset(Is, 0, SIZE);
   //memset(Is, SMAX, SIZE);
   printArray("Sorting:", Is);
@@ -138,7 +149,7 @@ int main() {
   markovSort();
   printArray("Guess:  ", Os);
 
-  exampleSort();
+  makeExample();
   printArray("Answer: ", Os);
   return 0;
 }
