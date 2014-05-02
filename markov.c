@@ -14,8 +14,8 @@
 typedef struct chain {
   int Ls[BITS]; // locations of sampled values
   int Rs[BITS]; // responsiveness (amplitude cutoff)
-  uint16_t Ss[TRNS][TRNS]; // statistics
-  uint16_t Ts[TRNS]; // transitions
+  int Ss[TRNS][TRNS]; // statistics
+  int Ts[TRNS]; // transitions
 } chain;
 
 chain Cs[NCHAINS];
@@ -74,6 +74,8 @@ void chainTrain(chain *C) {
   C->Ss[In][Out]++;
 }
 
+// FIXME: if all futures are equally probable,
+//        then just eliminate this transition
 void chainFinishTraining(chain *C) {
   int I, J;
   for (I = 0; I < TRNS; I++) {
@@ -85,6 +87,7 @@ void chainFinishTraining(chain *C) {
         BestTransition = J;
       }
     }
+    if (!BestCount) BestTransition = -1;
     C->Ts[I] = BestTransition;
   }
 }
@@ -105,8 +108,9 @@ void trainChains(int Examples) {
 
 void chainVote(chain *C) {
   int I;
-  uint8_t In = gatherBits(Is, C);
-  uint8_t Out = C->Ts[In];
+  int In = gatherBits(Is, C);
+  int Out = C->Ts[In];
+  if (Out == -1) return;
   for (I = 0; I < BITS; I++) {
     Vs[C->Ls[I]][0] += (Out&(1<<I)) ? 1 : 0;
     Vs[C->Ls[I]][1]++;
