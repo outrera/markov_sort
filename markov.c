@@ -10,6 +10,7 @@
 #define BITS 6
 #define TRNS (1<<BITS)
 #define SMAX 255
+#define REFRAIN -1
 
 typedef struct chain {
   int Ls[BITS]; // locations of sampled values
@@ -87,7 +88,7 @@ void chainFinishTraining(chain *C) {
         BestTransition = J;
       }
     }
-    if (!BestCount) BestTransition = -1;
+    if (!BestCount) BestTransition = REFRAIN;
     C->Ts[I] = BestTransition;
   }
 }
@@ -110,7 +111,7 @@ void chainVote(chain *C) {
   int I;
   int In = gatherBits(Is, C);
   int Out = C->Ts[In];
-  if (Out == -1) return;
+  if (Out == REFRAIN) return;
   for (I = 0; I < BITS; I++) {
     Vs[C->Ls[I]][0] += (Out&(1<<I)) ? 1 : 0;
     Vs[C->Ls[I]][1]++;
